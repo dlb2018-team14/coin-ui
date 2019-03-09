@@ -103,3 +103,10 @@ python3 ./main_save_image.py
 
 # data/sample-images/out/配下にバウンディングボックスつきの画像が出力される
 ```
+
+webcam経由でリアルタイム出力
+
+```
+python3 ./main_camera.py
+```
+

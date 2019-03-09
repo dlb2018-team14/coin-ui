@@ -19,7 +19,9 @@ options = {
 }
 
 # sample-images/outディレクトリを作っておかないと、静かに落ちる
-os.makedirs("./data/sample-images/out")
+img_out_dir = "./data/sample-images/out"
+if not os.path.exists(img_out_dir):
+    os.makedirs(img_out_dir)
 
 tfnet = TFNet(options)
 
