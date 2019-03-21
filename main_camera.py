@@ -18,7 +18,9 @@ options = {
     # 閾値
     "threshold": 0.3,
     # 何elapsedごとに結果を画面に表示するか
-    "queue": 1
+    "queue": 1,
+    # 撮影結果を保存するか
+    "saveVideo": True
 }
 
 tfnet = TFNet(options)
@@ -30,7 +32,9 @@ def start_web_camera(tfnet):
     # カメラデバイス番号
     device_number = 0
 
+    # webカメラ初期化
     camera = cv2.VideoCapture(device_number)
+
     # fps設定
     #camera.set(cv2.CAP_PROP_FPS, 10)
     print(camera.get(cv2.CAP_PROP_FPS))
@@ -45,13 +49,15 @@ def start_web_camera(tfnet):
     height, width, _ = frame.shape
     cv2.resizeWindow('', width, height)
 
+    # 動画保存フラグがonの場合は動画レコーダーを初期化
     if SaveVideo:
-        fourcc = cv2.VideoWriter_fourcc(*'XVID')
+        # 動画コーデックを指定
+        fourcc = cv2.VideoWriter_fourcc(*'MP4V')
+        # フレームレート指定
         fps = 1 / tfnet._get_fps(frame)
         if fps < 1:
             fps = 1
-        videoWriter = cv2.VideoWriter(
-            'video.avi', fourcc, fps, (width, height))
+        videoWriter = cv2.VideoWriter('result-video.mp4', fourcc, fps, (width, height))
 
     # buffers for demo in batch
     buffer_inp = list()
@@ -82,8 +88,6 @@ def start_web_camera(tfnet):
             for img, single_out in zip(buffer_inp, net_out):
                 # バウンディングボックスを画像にセット
                 postprocessed = tfnet.framework.postprocess(single_out, img, False)
-                if SaveVideo:
-                    videoWriter.write(postprocessed)
 
                 # 総額計算
                 boxesInfo = tfnet.return_predict(img)
@@ -110,6 +114,10 @@ def start_web_camera(tfnet):
                     5,  # thickness: 線の太さ
                     # False  # bottomLeftOrigin(第9引数): Trueなら左下隅を原点、そうでなければ左上隅
                 )
+
+                # 動画ファイルに保存
+                if SaveVideo:
+                    videoWriter.write(postprocessed)
 
                 # 結果を画面に表示
                 cv2.imshow('', postprocessed)
