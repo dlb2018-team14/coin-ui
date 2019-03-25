@@ -8,11 +8,15 @@ import numpy as np
 # see: webcam
 # https://github.com/thtrieu/darkflow#cameravideo-file-demo
 
+# オプションの解説：
+# https://github.com/thtrieu/darkflow/blob/b2aee0000cd2a956b9f1de6dbfef94d53158b7d8/darkflow/defaults.py#L8
 options = {
     # 訓練済みモデル
-    "load": "./data/weights/yolo-obj_900.weights",
+    #"load": "./data/weights/kato_yolo-obj_900.weights",
+    "load": "./data/weights/fukase_yolo-obj.weights",
     # 訓練するときに使ったyoloのコンフィグファイル
-    "model": "./data/cfg/yolo-obj.cfg",
+    #"model": "./data/cfg/kato_yolo-obj.cfg",
+    "model": "./data/cfg/fukase_yolo-obj.cfg",
     # ラベル
     "labels": "./data/labels/obj.names",
     # 閾値
