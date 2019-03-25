@@ -51,6 +51,7 @@ def start_web_camera(tfnet):
     cv2.namedWindow('', 0)
     _, frame = camera.read()
     height, width, _ = frame.shape
+    print(height, width)
     cv2.resizeWindow('', width, height)
 
     # 動画保存フラグがonの場合は動画レコーダーを初期化

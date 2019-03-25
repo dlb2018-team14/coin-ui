@@ -9,13 +9,13 @@ options = {
         # 訓練済みモデル
         #"load": "./data/weights/maeharin_yolo-obj_900.weights",
         #"load": "./data/weights/kato_yolo-obj_900.weights",
-        #"load": "./data/weights/fukase_yolo-obj.weights",
-        "load": "./data/weights/abe_yolov3_6000.weights",
+        "load": "./data/weights/fukase_yolo-obj.weights",
+        #"load": "./data/weights/abe_yolov3_6000.weights",
         # 訓練するときに使ったyoloのコンフィグファイル
         #"model": "./data/cfg/maeharin_yolo-obj.cfg",
         #"model": "./data/cfg/kato_yolo-obj.cfg",
-        #"model": "./data/cfg/fukase_yolo-obj.cfg",
-        "model": "./data/cfg/abe_yolov3.cfg",
+        "model": "./data/cfg/fukase_yolo-obj.cfg",
+        #"model": "./data/cfg/abe_yolov3.cfg",
         # ラベル
         "labels": "./data/labels/obj.names",
         # 閾値

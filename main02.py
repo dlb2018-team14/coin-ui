@@ -4,6 +4,7 @@ import numpy as np
 # yolo v3対応版 webカメラ
 
 # 参考：
+# https://github.com/opencv/opencv/blob/master/samples/dnn/object_detection.py
 # https://github.com/sankit1/cv-tricks.com/blob/master/OpenCV/Running_YOLO/predict_on_yolo.py
 # https://nixeneko.hatenablog.com/entry/2018/08/15/000000
 
@@ -18,7 +19,7 @@ net = cv2.dnn.readNetFromDarknet(CFG, MODEL)
 net.setPreferableBackend(cv2.dnn.DNN_BACKEND_DEFAULT)
 net.setPreferableTarget(cv2.dnn.DNN_TARGET_CPU)
 
-confThreshold = 0.5 # Confidence threshold
+confThreshold = 0.3 # Confidence threshold
 nmsThreshold = 0.4  # Non-maximum supression threshold
 
 LABELS = [
@@ -53,8 +54,24 @@ def postprocess(frame, outs):
 
         labelSize, baseLine = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
         top = max(top, labelSize[1])
-        cv2.rectangle(frame, (left, top - labelSize[1]), (left + labelSize[0], top + baseLine), (255, 255, 255), cv2.FILLED)
-        cv2.putText(frame, label, (left, top), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0))
+
+        cv2.rectangle(
+            frame,
+            (left, top - labelSize[1]), # (left, top)
+            (left + labelSize[0], top + baseLine), #(right, bottom)
+            (255, 255, 255), # 色
+            cv2.FILLED #  thickness: 線の太さ
+        )
+
+        cv2.putText(
+            frame,
+            label,
+            (left, top),
+            cv2.FONT_HERSHEY_SIMPLEX, # フォント
+            0.5, # フォントサイズ
+            (0, 0, 0), # 色
+            #5 # thickness: 線の太さ
+        )
 
     layerNames = net.getLayerNames()
     lastLayerId = net.getLayerId(layerNames[-1])
@@ -100,11 +117,18 @@ def postprocess(frame, outs):
         height = box[3]
         drawPred(classIds[i], confidences[i], left, top, left + width, top + height)
 
-# Process inputs
-winName = 'Deep learning object detection in OpenCV'
-cv2.namedWindow(winName, cv2.WINDOW_NORMAL)
-
 cap = cv2.VideoCapture(0)
+
+# https://stackoverflow.com/questions/31821451/opencv-resizing-window-does-not-work
+#winName = 'Deep learning object detection in OpenCV'
+#cv2.namedWindow(winName, cv2.WINDOW_NORMAL)
+winName = ''
+cv2.namedWindow(winName, 0)
+_, frame = cap.read()
+height, width, _ = frame.shape
+print(height, width)
+cv2.resizeWindow('', width, height)
+
 while cv2.waitKey(1) < 0:
     hasFrame, frame = cap.read()
     if not hasFrame:
