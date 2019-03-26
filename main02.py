@@ -1,4 +1,5 @@
 import cv2
+import datetime
 import numpy as np
 
 # yolo v3対応版 webカメラ
@@ -13,6 +14,16 @@ import numpy as np
 # http://labs.eecs.tottori-u.ac.jp/sd/Member/oyamada/OpenCV/html/py_tutorials/py_gui/py_video_display/py_video_display.html
 #
 
+# kato yolov2
+#VIDEO_NAME = "./video-kato-yolov2-threshold0.5-{0}.mp4".format(datetime.datetime.now().strftime("%Y%m%d_%H%M%S"))
+#MODEL = "./data/weights/kato_yolo-obj_900.weights"
+#CFG = "./data/cfg/kato_yolo-obj.cfg"
+# fukase yolov2
+#VIDEO_NAME = "./video-fukase-yolov2-{0}.mp4".format(datetime.datetime.now().strftime("%Y%m%d_%H%M%S"))
+#MODEL = "./data/weights/fukase_yolo-obj.weights"
+#CFG = "./data/cfg/fukase_yolo-obj.cfg"
+# abe yolov3
+VIDEO_NAME = "./video-abe-yolov3-{0}.mp4".format(datetime.datetime.now().strftime("%Y%m%d_%H%M%S"))
 MODEL = "./data/weights/abe_yolov3_6000.weights"
 CFG = "./data/cfg/abe_yolov3.cfg"
 SCALE = 0.00392 # 1/255, 入力のスケール
@@ -163,15 +174,34 @@ def postprocess(frame, outs):
     # 総額計算
     labels = [l.replace('yen', '') for l in labels]
     nums = [int(l.replace('yen', '')) for l in labels if l != 'other']
-    amount = sum(nums)
+    amountText = "%d yen" % sum(nums)
+
+    fontType = cv2.FONT_HERSHEY_SIMPLEX
+    fontSize = 2
+    fontThickNess = 5
+    labelSize, baseLine = cv2.getTextSize(
+        amountText,
+        fontType,
+        fontSize,
+        fontThickNess
+    )
+    left = 0
+    top = 50
+    cv2.rectangle(
+        frame,
+        (left, top - labelSize[1]), # (left, top)
+        (left + labelSize[0], top + baseLine), #(right, bottom)
+        (0, 0, 200), # 色
+        cv2.FILLED #  thickness: 線の太さ
+    )
     cv2.putText(
         frame,  # 書き込み対象画像
-        "%d yen" % amount,  # 書き込みテキスト
-        (0, 50),  # org: 書く場所の座標(テキストを書き始める位置の左下)
-        0,  # fontFace: フォント ( OpenCVが提供するフォントの情報については cv2.putText() 関数のドキュメンテーションを参照のこと)-
-        2,  # fontScale: フォントサイズ (文字のサイズ)
-        (0, 0, 200),  # color (red)
-        5,  # thickness: 線の太さ
+        amountText,  # 書き込みテキスト
+        (left, top),  # org: 書く場所の座標(テキストを書き始める位置の左下)
+        fontType,  # fontFace: フォント ( OpenCVが提供するフォントの情報については cv2.putText() 関数のドキュメンテーションを参照のこと)-
+        fontSize,  # fontScale: フォントサイズ (文字のサイズ)
+        (255, 255, 255),  # color
+        fontThickNess,  # thickness: 線の太さ
         # False  # bottomLeftOrigin(第9引数): Trueなら左下隅を原点、そうでなければ左上隅
     )
 
@@ -232,7 +262,7 @@ if __name__ == "__main__":
     # 録画のフレームレート指定
     # 本当は一回処理を走らせて計測したほうがいいけど
     fps = 3
-    videoWriter = cv2.VideoWriter('result-video.mp4', fourcc, fps, (width, height))
+    videoWriter = cv2.VideoWriter(VIDEO_NAME, fourcc, fps, (width, height))
 
     try:
         capture_camera(camera, videoWriter, winName)
