@@ -3,10 +3,15 @@ import numpy as np
 
 # yolo v3対応版 webカメラ
 
-# 参考：
+#
+# opencvでyolov3
 # https://github.com/opencv/opencv/blob/master/samples/dnn/object_detection.py
 # https://github.com/sankit1/cv-tricks.com/blob/master/OpenCV/Running_YOLO/predict_on_yolo.py
 # https://nixeneko.hatenablog.com/entry/2018/08/15/000000
+#
+# opencvのカメラの使い方
+# http://labs.eecs.tottori-u.ac.jp/sd/Member/oyamada/OpenCV/html/py_tutorials/py_gui/py_video_display/py_video_display.html
+#
 
 MODEL = "./data/weights/abe_yolov3_6000.weights"
 CFG = "./data/cfg/abe_yolov3.cfg"
@@ -32,6 +37,18 @@ LABELS = [
     "other",
 ]
 
+# rgb
+# https://www.rapidtables.com/web/color/RGB_Color.html
+COLORS = [
+    (0, 0, 0),        # 1yen:black
+    (128,128,0),      # 5yen:Olive
+    (128, 0, 0),      # 10yen:maroon
+    (0, 0, 255),      # 50yen:blue
+    (0, 255, 0),      # 100yen:lime
+    (255, 0, 0),      # 500yen:red
+    (128, 128, 128),  # other:grey
+]
+
 
 def getOutputsNames(net):
     layersNames = net.getLayerNames()
@@ -42,24 +59,46 @@ def postprocess(frame, outs):
     frameWidth = frame.shape[1]
 
     def drawPred(classId, conf, left, top, right, bottom):
+        # color
+        # rgb -> bgr
+        classColor = COLORS[classId]
+        classColor = (classColor[2], classColor[1], classColor[0])
+
+        # label
+        label = LABELS[classId]
+
+        # 座標
         left = int(left)
         top = int(top)
         right = int(right)
         bottom = int(bottom)
+
         # Draw a bounding box.
-        cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0))
+        cv2.rectangle(
+            frame,
+            (left, top),
+            (right, bottom),
+            classColor
+        )
 
-        labelName = LABELS[classId]
-        label = '%s %.2f' % (labelName, conf)
+        fontType = cv2.FONT_HERSHEY_SIMPLEX
+        fontSize = 1
+        fontThickNess = 2
 
-        labelSize, baseLine = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+        labelSize, baseLine = cv2.getTextSize(
+            label,
+            fontType,
+            fontSize,
+            fontThickNess
+        )
+
         top = max(top, labelSize[1])
 
         cv2.rectangle(
             frame,
             (left, top - labelSize[1]), # (left, top)
             (left + labelSize[0], top + baseLine), #(right, bottom)
-            (255, 255, 255), # 色
+            classColor, # 色
             cv2.FILLED #  thickness: 線の太さ
         )
 
@@ -67,10 +106,10 @@ def postprocess(frame, outs):
             frame,
             label,
             (left, top),
-            cv2.FONT_HERSHEY_SIMPLEX, # フォント
-            0.5, # フォントサイズ
-            (0, 0, 0), # 色
-            #5 # thickness: 線の太さ
+            fontType, # フォント
+            fontSize, # フォントサイズ
+            (255, 255, 255), # 色(白）
+            fontThickNess # thickness: 線の太さ
         )
 
     layerNames = net.getLayerNames()
@@ -108,6 +147,8 @@ def postprocess(frame, outs):
         exit()
 
     indices = cv2.dnn.NMSBoxes(boxes, confidences, confThreshold, nmsThreshold)
+
+    labels = []
     for i in indices:
         i = i[0]
         box = boxes[i]
@@ -115,43 +156,89 @@ def postprocess(frame, outs):
         top = box[1]
         width = box[2]
         height = box[3]
-        drawPred(classIds[i], confidences[i], left, top, left + width, top + height)
+        classId = classIds[i]
+        drawPred(classId, confidences[i], left, top, left + width, top + height)
+        labels.append(LABELS[classId])
 
-cap = cv2.VideoCapture(0)
+    # 総額計算
+    labels = [l.replace('yen', '') for l in labels]
+    nums = [int(l.replace('yen', '')) for l in labels if l != 'other']
+    amount = sum(nums)
+    cv2.putText(
+        frame,  # 書き込み対象画像
+        "%d yen" % amount,  # 書き込みテキスト
+        (0, 50),  # org: 書く場所の座標(テキストを書き始める位置の左下)
+        0,  # fontFace: フォント ( OpenCVが提供するフォントの情報については cv2.putText() 関数のドキュメンテーションを参照のこと)-
+        2,  # fontScale: フォントサイズ (文字のサイズ)
+        (0, 0, 200),  # color (red)
+        5,  # thickness: 線の太さ
+        # False  # bottomLeftOrigin(第9引数): Trueなら左下隅を原点、そうでなければ左上隅
+    )
 
-# https://stackoverflow.com/questions/31821451/opencv-resizing-window-does-not-work
-#winName = 'Deep learning object detection in OpenCV'
-#cv2.namedWindow(winName, cv2.WINDOW_NORMAL)
-winName = ''
-cv2.namedWindow(winName, 0)
-_, frame = cap.read()
-height, width, _ = frame.shape
-print(height, width)
-cv2.resizeWindow('', width, height)
 
-while cv2.waitKey(1) < 0:
-    hasFrame, frame = cap.read()
-    if not hasFrame:
-        cv2.waitKey()
-        break
+def capture_camera(camera, videoWriter, winName):
+    while camera.isOpened():
+        hasFrame, frame = camera.read()
+        if not hasFrame:
+            cv2.waitKey()
+            break
 
-    frameHeight = frame.shape[0]
-    frameWidth = frame.shape[1]
+        frameHeight = frame.shape[0]
+        frameWidth = frame.shape[1]
 
-    # Create a 4D blob from a frame.
-    inpWidth = INP_SHAPE[0]
-    inpHeight = INP_SHAPE[1]
-    blob = cv2.dnn.blobFromImage(frame, SCALE, (inpWidth, inpHeight), MEAN, RGB, crop=False)
+        # Create a 4D blob from a frame.
+        inpWidth = INP_SHAPE[0]
+        inpHeight = INP_SHAPE[1]
+        blob = cv2.dnn.blobFromImage(frame, SCALE, (inpWidth, inpHeight), MEAN, RGB, crop=False)
 
-    # Run a model
-    net.setInput(blob)
-    outs = net.forward(getOutputsNames(net))
+        # Run a model
+        net.setInput(blob)
+        outs = net.forward(getOutputsNames(net))
 
-    postprocess(frame, outs)
+        postprocess(frame, outs)
 
-    # Put efficiency information.
-    t, _ = net.getPerfProfile()
-    label = 'Inference time: %.2f ms' % (t * 1000.0 / cv2.getTickFrequency())
-    cv2.putText(frame, label, (0, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0))
+        # Put efficiency information.
+        #t, _ = net.getPerfProfile()
+        #label = 'Inference time: %.2f ms' % (t * 1000.0 / cv2.getTickFrequency())
+        #cv2.putText(frame, label, (0, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0))
 
-    cv2.imshow(winName, frame)
+        cv2.imshow(winName, frame)
+        videoWriter.write(frame)
+
+        # any key pressed, then cancel
+        # https://theasciicode.com.ar/ascii-control-characters/escape-ascii-code-27.html
+        choice = cv2.waitKey(1)
+        if choice > 0:
+            print("canceled!")
+            break
+
+
+if __name__ == "__main__":
+
+    # カメラ設定
+    camera = cv2.VideoCapture(0)
+    # https://stackoverflow.com/questions/31821451/opencv-resizing-window-does-not-work
+    #winName = 'Deep learning object detection in OpenCV'
+    #cv2.namedWindow(winName, cv2.WINDOW_NORMAL)
+    winName = ''
+    cv2.namedWindow(winName, 0)
+    _, frame = camera.read()
+    height, width, _ = frame.shape
+    cv2.resizeWindow('', width, height)
+
+    # 録画設定
+    # 動画コーデックを指定
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    # 録画のフレームレート指定
+    # 本当は一回処理を走らせて計測したほうがいいけど
+    fps = 3
+    videoWriter = cv2.VideoWriter('result-video.mp4', fourcc, fps, (width, height))
+
+    try:
+        capture_camera(camera, videoWriter, winName)
+    finally:
+        print("finalize...")
+        videoWriter.release()
+        camera.release()
+        cv2.destroyAllWindows()
+
