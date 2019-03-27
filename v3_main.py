@@ -1,6 +1,11 @@
 import cv2
 import datetime
 import numpy as np
+import sys
+import argparse
+import glob
+import os
+
 
 # yolo v3対応版 webカメラ
 
@@ -23,11 +28,17 @@ import numpy as np
 #MODEL = "./data/weights/fukase_yolo-obj.weights"
 #CFG = "./data/cfg/fukase_yolo-obj.cfg"
 # abe yolov3
-VIDEO_NAME = "./video-abe-yolov3-{0}.mp4".format(datetime.datetime.now().strftime("%Y%m%d_%H%M%S"))
-MODEL = "./data/weights/abe_yolov3_6000.weights"
-CFG = "./data/cfg/abe_yolov3.cfg"
+#VIDEO_NAME = "./video-abe-yolov3-{0}.mp4".format(datetime.datetime.now().strftime("%Y%m%d_%H%M%S"))
+#MODEL = "./data/weights/abe_yolov3_6000.weights"
+#CFG = "./data/cfg/abe_yolov3.cfg"
+# fukase yolov3
+VIDEO_NAME = "./video-fukase-yolov3-{0}.mp4".format(datetime.datetime.now().strftime("%Y%m%d_%H%M%S"))
+MODEL = "./data/weights/fukase_yolov3_final.weights"
+CFG = "./data/cfg/fukase_yolov3.cfg"
 SCALE = 0.00392 # 1/255, 入力のスケール
+# うーん、、、cfgの中をみると608のはずなんだけど、416のほうが正確に表示される。。。
 INP_SHAPE = (416, 416) #入力サイズ
+#INP_SHAPE = (608, 608) #入力サイズ
 MEAN = 0
 RGB = True
 
@@ -206,7 +217,30 @@ def postprocess(frame, outs):
     )
 
 
-def capture_camera(camera, videoWriter, winName):
+def predict_images(imageDir):
+    imagePaths = glob.glob(imageDir + "/*.jpg")
+    imagePaths.extend(glob.glob(imageDir + "/*.JPG"))
+    for imagePath in imagePaths:
+        frame = cv2.imread(imagePath)
+
+        # Create a 4D blob from a frame.
+        inpWidth = INP_SHAPE[0]
+        inpHeight = INP_SHAPE[1]
+        blob = cv2.dnn.blobFromImage(frame, SCALE, (inpWidth, inpHeight), MEAN, RGB, crop=False)
+
+        # Run a model
+        net.setInput(blob)
+        outs = net.forward(getOutputsNames(net))
+        postprocess(frame, outs)
+
+        # write
+        fileName = os.path.basename(imagePath)
+        outputName = os.path.join(imageDir, 'predicted', fileName)
+        cv2.imwrite(outputName, frame)
+        print(outputName)
+
+
+def predict_camera(camera, videoWriter, winName):
     while camera.isOpened():
         hasFrame, frame = camera.read()
         if not hasFrame:
@@ -244,31 +278,43 @@ def capture_camera(camera, videoWriter, winName):
 
 
 if __name__ == "__main__":
+    argParser = argparse.ArgumentParser()
+    argParser.add_argument('--imageDir',  type=str)
+    args = argParser.parse_args()
 
-    # カメラ設定
-    camera = cv2.VideoCapture(0)
-    # https://stackoverflow.com/questions/31821451/opencv-resizing-window-does-not-work
-    #winName = 'Deep learning object detection in OpenCV'
-    #cv2.namedWindow(winName, cv2.WINDOW_NORMAL)
-    winName = ''
-    cv2.namedWindow(winName, 0)
-    _, frame = camera.read()
-    height, width, _ = frame.shape
-    cv2.resizeWindow('', width, height)
 
-    # 録画設定
-    # 動画コーデックを指定
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    # 録画のフレームレート指定
-    # 本当は一回処理を走らせて計測したほうがいいけど
-    fps = 3
-    videoWriter = cv2.VideoWriter(VIDEO_NAME, fourcc, fps, (width, height))
+    if args.imageDir != None:
+        print("image mode...")
+        # 画像モード
+        predict_images(args.imageDir)
+    else:
+        # webカメラモード
+        print("web camera mode...")
 
-    try:
-        capture_camera(camera, videoWriter, winName)
-    finally:
-        print("finalize...")
-        videoWriter.release()
-        camera.release()
-        cv2.destroyAllWindows()
+        # カメラ設定
+        camera = cv2.VideoCapture(0)
+        # https://stackoverflow.com/questions/31821451/opencv-resizing-window-does-not-work
+        #winName = 'Deep learning object detection in OpenCV'
+        #cv2.namedWindow(winName, cv2.WINDOW_NORMAL)
+        winName = ''
+        cv2.namedWindow(winName, 0)
+        _, frame = camera.read()
+        height, width, _ = frame.shape
+        cv2.resizeWindow('', width, height)
+
+        # 録画設定
+        # 動画コーデックを指定
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        # 録画のフレームレート指定
+        # 本当は一回処理を走らせて計測したほうがいいけど
+        fps = 3
+        videoWriter = cv2.VideoWriter(VIDEO_NAME, fourcc, fps, (width, height))
+
+        try:
+            predict_camera(camera, videoWriter, winName)
+        finally:
+            print("finalize...")
+            videoWriter.release()
+            camera.release()
+            cv2.destroyAllWindows()
 
